@@ -152,6 +152,30 @@ const PAD_LEFT = 40, PAD_RIGHT = 20, PAD_TOP = 20, PAD_BOTTOM = 30;
 const plotW = W - PAD_LEFT - PAD_RIGHT;
 const plotH = H - PAD_TOP - PAD_BOTTOM;
 
+// Cache DOM references for elements read/written every frame
+const el = {
+  lr: document.getElementById('lr'),
+  lr2: document.getElementById('lr2'),
+  momentum: document.getElementById('momentum'),
+  lrDecay: document.getElementById('lrDecay'),
+  adamLR: document.getElementById('adamLR'),
+  beta1: document.getElementById('beta1'),
+  beta2: document.getElementById('beta2'),
+  stepSize: document.getElementById('stepSize'),
+  cool: document.getElementById('cool'),
+  temp: document.getElementById('temp'),
+  delay: document.getElementById('delay'),
+  statStep: document.getElementById('statStep'),
+  statGD: document.getElementById('statGD'),
+  statGDP: document.getElementById('statGDP'),
+  statAdam: document.getElementById('statAdam'),
+  statSA: document.getElementById('statSA'),
+  statSABest: document.getElementById('statSABest'),
+  statTemp: document.getElementById('statTemp'),
+};
+
+function param(input) { return parseFloat(input.value); }
+
 let sinTerms = [];
 let gaussTerms = [];
 
@@ -261,10 +285,9 @@ function drawCurve() {
   ctx.stroke();
 }
 
-function drawMarker(x, color, label) {
-  const y = f(x);
+function drawMarker(x, fVal, color, label) {
   const cx = xToCanvas(x);
-  const cy = yToCanvas(y);
+  const cy = yToCanvas(fVal);
   ctx.setLineDash([3, 3]);
   ctx.strokeStyle = color;
   ctx.lineWidth = 1;
@@ -289,9 +312,10 @@ function drawMarker(x, color, label) {
 }
 
 // --- State ---
-let startX;
+let startX, startFx;
 let gdX, gdpX, adamX, saX;
-let gdpVelocity, gdpCurrentLR;
+let gdFx, gdpFx, adamFx, saFx;
+let gdpVelocity, gdpBaseLR, gdpCurrentLR;
 let adamM, adamV, adamT;
 let saBestX, saBestVal;
 let saTemp;
@@ -302,6 +326,12 @@ let stepCount = 0;
 
 function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 
+function stopTimers() {
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  if (timerId) { clearTimeout(timerId); timerId = null; }
+  running = false;
+}
+
 function pickStart() {
   startX = 0.1 + Math.random() * 0.8;
 }
@@ -310,8 +340,7 @@ canvas.addEventListener('click', function(e) {
   if (running) return;
   const rect = canvas.getBoundingClientRect();
   const px = (e.clientX - rect.left) * (W / rect.width);
-  const x = clamp01(canvasToX(px));
-  startX = x;
+  startX = clamp01(canvasToX(px));
   resetToStart();
 });
 
@@ -320,7 +349,7 @@ function redraw() {
   drawAxes();
   drawCurve();
   const scx = xToCanvas(startX);
-  const scy = yToCanvas(f(startX));
+  const scy = yToCanvas(startFx);
   ctx.beginPath();
   ctx.arc(scx, scy, 5, 0, Math.PI * 2);
   ctx.fillStyle = '#ffffff';
@@ -328,10 +357,10 @@ function redraw() {
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 1;
   ctx.stroke();
-  drawMarker(gdX, '#00ff88', 'GD');
-  drawMarker(gdpX, '#00ccff', 'GD+');
-  drawMarker(adamX, '#cc66ff', 'Adam');
-  drawMarker(saX, '#ff6600', 'SA');
+  drawMarker(gdX, gdFx, '#00ff88', 'GD');
+  drawMarker(gdpX, gdpFx, '#00ccff', 'GD+');
+  drawMarker(adamX, adamFx, '#cc66ff', 'Adam');
+  drawMarker(saX, saFx, '#ff6600', 'SA');
   if (saBestX !== saX) {
     const bx = xToCanvas(saBestX);
     const by = yToCanvas(saBestVal);
@@ -351,31 +380,33 @@ function redraw() {
   }
 }
 
+function clearStats() {
+  el.statStep.textContent = '-';
+  el.statGD.textContent = '-';
+  el.statGDP.textContent = '-';
+  el.statAdam.textContent = '-';
+  el.statSA.textContent = '-';
+  el.statSABest.textContent = '-';
+  el.statTemp.textContent = '-';
+}
+
 function resetToStart() {
-  if (animId) { cancelAnimationFrame(animId); animId = null; }
-  if (timerId) { clearTimeout(timerId); timerId = null; }
-  running = false;
-  gdX = startX;
-  gdpX = startX;
+  stopTimers();
+  startFx = f(startX);
+  gdX = gdpX = adamX = saX = startX;
+  gdFx = gdpFx = adamFx = saFx = startFx;
   gdpVelocity = 0;
-  gdpCurrentLR = parseFloat(document.getElementById('lr2').value);
-  adamX = startX;
+  gdpBaseLR = param(el.lr2);
+  gdpCurrentLR = gdpBaseLR;
   adamM = 0;
   adamV = 0;
   adamT = 0;
-  saX = startX;
   saBestX = startX;
-  saBestVal = f(startX);
-  saTemp = parseFloat(document.getElementById('temp').value);
+  saBestVal = startFx;
+  saTemp = param(el.temp);
   stepCount = 0;
   redraw();
-  document.getElementById('statStep').textContent = '-';
-  document.getElementById('statGD').textContent = '-';
-  document.getElementById('statGDP').textContent = '-';
-  document.getElementById('statAdam').textContent = '-';
-  document.getElementById('statSA').textContent = '-';
-  document.getElementById('statSABest').textContent = '-';
-  document.getElementById('statTemp').textContent = '-';
+  clearStats();
 }
 
 function reset() { pickStart(); resetToStart(); }
@@ -383,24 +414,27 @@ function rerun() { resetToStart(); }
 
 // --- Algorithms ---
 function stepGD() {
-  const lr = parseFloat(document.getElementById('lr').value);
+  const lr = param(el.lr);
   const gradient = df(gdX);
   gdX = clamp01(gdX - lr * 0.001 * gradient);
+  gdFx = f(gdX);
 }
 
 function stepGDP() {
-  const mom = parseFloat(document.getElementById('momentum').value);
-  const decay = parseFloat(document.getElementById('lrDecay').value);
+  const mom = param(el.momentum);
+  const decay = param(el.lrDecay);
   const gradient = df(gdpX);
   gdpVelocity = mom * gdpVelocity + gdpCurrentLR * 0.01 * gradient;
   gdpX = clamp01(gdpX - gdpVelocity);
-  gdpCurrentLR *= decay;
+  gdpCurrentLR = gdpBaseLR * decay;
+  gdpBaseLR = gdpCurrentLR;
+  gdpFx = f(gdpX);
 }
 
 function stepAdam() {
-  const lr = parseFloat(document.getElementById('adamLR').value);
-  const b1 = parseFloat(document.getElementById('beta1').value);
-  const b2 = parseFloat(document.getElementById('beta2').value);
+  const lr = param(el.adamLR);
+  const b1 = param(el.beta1);
+  const b2 = param(el.beta2);
   const eps = 1e-8;
   const gradient = df(adamX);
   adamT++;
@@ -409,18 +443,19 @@ function stepAdam() {
   const mHat = adamM / (1 - Math.pow(b1, adamT));
   const vHat = adamV / (1 - Math.pow(b2, adamT));
   adamX = clamp01(adamX - lr * mHat / (Math.sqrt(vHat) + eps));
+  adamFx = f(adamX);
 }
 
 function stepSA() {
-  const step = parseFloat(document.getElementById('stepSize').value);
-  const cool = parseFloat(document.getElementById('cool').value);
-  const curVal = f(saX);
+  const step = param(el.stepSize);
+  const cool = param(el.cool);
   const dx = (Math.random() - 0.5) * 2 * step;
   const nx = clamp01(saX + dx);
   const newVal = f(nx);
-  const delta = newVal - curVal;
+  const delta = newVal - saFx;
   if (delta < 0 || Math.random() < Math.exp(-delta / (saTemp + 1e-10))) {
     saX = nx;
+    saFx = newVal;
     if (newVal < saBestVal) {
       saBestVal = newVal;
       saBestX = nx;
@@ -430,13 +465,13 @@ function stepSA() {
 }
 
 function updateStats() {
-  document.getElementById('statStep').textContent = stepCount;
-  document.getElementById('statGD').textContent = f(gdX).toFixed(4);
-  document.getElementById('statGDP').textContent = f(gdpX).toFixed(4);
-  document.getElementById('statAdam').textContent = f(adamX).toFixed(4);
-  document.getElementById('statSA').textContent = f(saX).toFixed(4);
-  document.getElementById('statSABest').textContent = saBestVal.toFixed(4);
-  document.getElementById('statTemp').textContent = saTemp.toFixed(4);
+  el.statStep.textContent = stepCount;
+  el.statGD.textContent = gdFx.toFixed(4);
+  el.statGDP.textContent = gdpFx.toFixed(4);
+  el.statAdam.textContent = adamFx.toFixed(4);
+  el.statSA.textContent = saFx.toFixed(4);
+  el.statSABest.textContent = saBestVal.toFixed(4);
+  el.statTemp.textContent = saTemp.toFixed(4);
 }
 
 function tick() {
@@ -448,7 +483,7 @@ function tick() {
   stepCount++;
   redraw();
   updateStats();
-  const delayMs = parseInt(document.getElementById('delay').value);
+  const delayMs = parseInt(el.delay.value);
   if (delayMs > 0) {
     timerId = setTimeout(tick, delayMs);
   } else {
@@ -461,23 +496,19 @@ function start() {
   if (running) return;
   running = true;
   if (stepCount === 0) {
-    saTemp = parseFloat(document.getElementById('temp').value);
-    gdpCurrentLR = parseFloat(document.getElementById('lr2').value);
+    saTemp = param(el.temp);
+    gdpBaseLR = param(el.lr2);
+    gdpCurrentLR = gdpBaseLR;
   }
   tick();
 }
 
 function pause() {
-  if (!running) return;
-  running = false;
-  if (animId) { cancelAnimationFrame(animId); animId = null; }
-  if (timerId) { clearTimeout(timerId); timerId = null; }
+  stopTimers();
 }
 
 function randomizeFunction() {
-  if (animId) { cancelAnimationFrame(animId); animId = null; }
-  if (timerId) { clearTimeout(timerId); timerId = null; }
-  running = false;
+  stopTimers();
   generateFunction();
   computeCurve();
   reset();
