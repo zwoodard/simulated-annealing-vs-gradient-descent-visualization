@@ -10,13 +10,13 @@
   h1 { font-size: 1.4rem; margin-bottom: 12px; color: #e94560; }
   .container { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; max-width: 1200px; }
   canvas { border: 1px solid #333; border-radius: 6px; background: #0f0f23; cursor: crosshair; }
-  .sidebar { display: flex; flex-direction: column; gap: 12px; min-width: 300px; max-width: 320px; }
-  .panel { background: #16213e; padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; }
-  .panel h2 { font-size: 0.95rem; color: #e94560; border-bottom: 1px solid #333; padding-bottom: 5px; margin: 0; }
-  label { font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
+  .sidebar { display: flex; flex-direction: column; gap: 10px; min-width: 310px; max-width: 330px; }
+  .panel { background: #16213e; padding: 10px 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 7px; }
+  .panel h2 { font-size: 0.9rem; color: #e94560; border-bottom: 1px solid #333; padding-bottom: 4px; margin: 0; }
+  label { font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center; }
   label span { color: #aaa; font-variant-numeric: tabular-nums; min-width: 50px; text-align: right; }
   input[type=range] { width: 100%; accent-color: #e94560; }
-  button { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+  button { padding: 7px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.82rem; font-weight: 600; }
   .btn-go { background: #e94560; color: white; }
   .btn-go:hover { background: #c73650; }
   .btn-pause { background: #e9a045; color: white; }
@@ -25,18 +25,27 @@
   .btn-reset:hover { background: #3e2563; }
   .btn-rand { background: #0f3460; color: white; }
   .btn-rand:hover { background: #0a2540; }
-  .btn-row { display: flex; gap: 8px; }
+  .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
   .legend { display: flex; gap: 12px; margin-top: 8px; font-size: 0.8rem; flex-wrap: wrap; }
   .legend div { display: flex; align-items: center; gap: 4px; }
   .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-  .stats { font-size: 0.8rem; background: #0f0f23; padding: 8px; border-radius: 4px; line-height: 1.6; }
+  .stats { font-size: 0.78rem; background: #0f0f23; padding: 8px; border-radius: 4px; line-height: 1.5; }
   .stats .stat-label { color: #e94560; font-weight: bold; }
   .stats .gd-label { color: #00ff88; font-weight: bold; }
   .stats .gdp-label { color: #00ccff; font-weight: bold; }
   .stats .adam-label { color: #cc66ff; font-weight: bold; }
   .stats .sa-label { color: #ff6600; font-weight: bold; }
-  .hint { font-size: 0.75rem; color: #777; line-height: 1.3; margin-top: -2px; }
-  .note { font-size: 0.75rem; color: #998; line-height: 1.3; background: rgba(255,255,255,0.03); padding: 5px 7px; border-radius: 3px; border-left: 2px solid #444; }
+  .hint { font-size: 0.72rem; color: #777; line-height: 1.3; }
+  .note { font-size: 0.72rem; color: #998; line-height: 1.3; background: rgba(255,255,255,0.03); padding: 4px 6px; border-radius: 3px; border-left: 2px solid #444; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; border-radius: 6px 6px 0 0; overflow: hidden; }
+  .tab { flex: 1; padding: 7px 4px; text-align: center; font-size: 0.78rem; font-weight: 700; cursor: pointer; border: none; background: #0f1a30; color: #888; transition: background 0.15s, color 0.15s; }
+  .tab:hover { background: #162040; }
+  .tab.active { background: #16213e; color: #fff; }
+  .tab-body { background: #16213e; padding: 10px 12px; border-radius: 0 0 8px 8px; display: flex; flex-direction: column; gap: 7px; }
+  .tab-content { display: none; flex-direction: column; gap: 7px; }
+  .tab-content.active { display: flex; }
 </style>
 </head>
 <body>
@@ -53,86 +62,89 @@
     </div>
   </div>
   <div class="sidebar">
-    <div class="panel">
-      <h2>Function</h2>
-      <button class="btn-rand" onclick="randomizeFunction()">Randomize</button>
-      <div class="hint">Click on the chart to set start position</div>
-    </div>
 
     <div class="panel">
-      <h2 style="color:#00ff88">Vanilla GD</h2>
-      <label>Learning Rate <span id="vLR">0.5</span></label>
-      <input type="range" id="lr" min="0.05" max="2.0" step="0.05" value="0.5" oninput="document.getElementById('vLR').textContent=this.value">
-      <div class="note">Follows the slope downhill. Always gets trapped in the nearest local minimum. Sensitive to gradient scale: too high overshoots, too low crawls.</div>
-    </div>
-
-    <div class="panel">
-      <h2 style="color:#00ccff">GD + Momentum</h2>
-      <label>Learning Rate <span id="vLR2">0.5</span></label>
-      <input type="range" id="lr2" min="0.05" max="2.0" step="0.05" value="0.5" oninput="document.getElementById('vLR2').textContent=this.value">
-      <label>Momentum <span id="vMom">0.5</span></label>
-      <input type="range" id="momentum" min="0.0" max="0.99" step="0.01" value="0.50" oninput="document.getElementById('vMom').textContent=this.value">
-      <div class="note">Accumulates velocity like a rolling ball. Low momentum = responsive, can overshoot bumps while moving fast. High momentum = heavy, resists direction changes. Try 0.3-0.6 to escape small hills.</div>
-      <label>LR Decay <span id="vDecay">0.999</span></label>
-      <input type="range" id="lrDecay" min="0.990" max="1.000" step="0.001" value="0.999" oninput="document.getElementById('vDecay').textContent=parseFloat(this.value).toFixed(3)">
-      <div class="hint">1.0 = no decay. Lower = shrinks LR over time so it settles.</div>
-    </div>
-
-    <div class="panel">
-      <h2 style="color:#cc66ff">Adam</h2>
-      <label>Learning Rate <span id="vAdamLR">0.01</span></label>
-      <input type="range" id="adamLR" min="0.001" max="0.05" step="0.001" value="0.010" oninput="document.getElementById('vAdamLR').textContent=parseFloat(this.value).toFixed(3)">
-      <div class="hint">Effective step size, auto-scaled by gradient history.</div>
-      <label>&beta;1 (momentum) <span id="vBeta1">0.9</span></label>
-      <input type="range" id="beta1" min="0.0" max="0.999" step="0.001" value="0.900" oninput="document.getElementById('vBeta1').textContent=this.value">
-      <div class="hint">How much past gradient direction is remembered.</div>
-      <label>&beta;2 (RMS scale) <span id="vBeta2">0.999</span></label>
-      <input type="range" id="beta2" min="0.9" max="0.9999" step="0.0001" value="0.999" oninput="document.getElementById('vBeta2').textContent=parseFloat(this.value).toFixed(4)">
-      <div class="hint">How much past gradient magnitude is remembered.</div>
-      <div class="note">Combines momentum with adaptive step sizing. Divides by the running average of gradient magnitudes, so the LR behaves consistently regardless of how steep the function is. This is why Adam's LR is much smaller &mdash; it self-adjusts.</div>
-    </div>
-
-    <div class="panel">
-      <h2 style="color:#ff6600">Simulated Annealing</h2>
-      <label>Step Size <span id="vStepSize">0.03</span></label>
-      <input type="range" id="stepSize" min="0.005" max="0.1" step="0.005" value="0.03" oninput="document.getElementById('vStepSize').textContent=this.value">
-      <div class="hint">How far each random jump can go.</div>
-      <label>Temperature <span id="vTemp">1.0</span></label>
-      <input type="range" id="temp" min="0.1" max="5.0" step="0.1" value="1.0" oninput="document.getElementById('vTemp').textContent=this.value">
-      <div class="hint">Higher = more willing to accept uphill moves early on.</div>
-      <label>Cooling Rate <span id="vCool">0.995</span></label>
-      <input type="range" id="cool" min="0.980" max="0.9999" step="0.0001" value="0.9950" oninput="document.getElementById('vCool').textContent=parseFloat(this.value).toFixed(4)">
-      <div class="hint">How quickly temperature drops. Closer to 1 = slower cooling.</div>
-      <div class="note">Not gradient-based at all. Jumps randomly, accepts bad moves probabilistically. Explores broadly when hot, settles when cold. Inspired by metalworking annealing.</div>
-    </div>
-
-    <div class="panel">
-      <h2>Playback</h2>
-      <label>Delay between steps <span id="vDelay">0 ms</span></label>
-      <input type="range" id="delay" min="0" max="1000" step="10" value="0" oninput="document.getElementById('vDelay').textContent=this.value+' ms'">
       <div class="btn-row">
+        <button class="btn-rand" onclick="randomizeFunction()">Randomize Function</button>
         <button class="btn-go" onclick="start()">Go</button>
         <button class="btn-pause" onclick="pause()">Pause</button>
-      </div>
-      <div class="btn-row">
         <button class="btn-reset" onclick="rerun()">Rerun</button>
         <button class="btn-rand" onclick="reset()">New Start</button>
       </div>
+      <label>Delay between steps <span id="vDelay">0 ms</span></label>
+      <input type="range" id="delay" min="0" max="1000" step="10" value="0" oninput="document.getElementById('vDelay').textContent=this.value+' ms'">
+      <div class="hint">Click on the chart to set start position</div>
     </div>
 
-    <div class="stats" id="stats">
+    <div>
+      <div class="tabs">
+        <button class="tab active" style="color:#00ff88" onclick="showTab('gd',this)">GD</button>
+        <button class="tab" onclick="showTab('gdp',this)">GD+Mom</button>
+        <button class="tab" onclick="showTab('adam',this)">Adam</button>
+        <button class="tab" onclick="showTab('sa',this)">SA</button>
+      </div>
+      <div class="tab-body">
+
+        <div id="tab-gd" class="tab-content active">
+          <label>Learning Rate <span id="vLR">0.5</span></label>
+          <input type="range" id="lr" min="0.05" max="2.0" step="0.05" value="0.5" oninput="document.getElementById('vLR').textContent=this.value">
+          <div class="note">Follows the slope downhill. Always gets trapped in the nearest local minimum. Sensitive to gradient scale: too high overshoots, too low crawls.</div>
+        </div>
+
+        <div id="tab-gdp" class="tab-content">
+          <label>Learning Rate <span id="vLR2">0.5</span></label>
+          <input type="range" id="lr2" min="0.05" max="2.0" step="0.05" value="0.5" oninput="document.getElementById('vLR2').textContent=this.value">
+          <label>Momentum <span id="vMom">0.5</span></label>
+          <input type="range" id="momentum" min="0.0" max="0.99" step="0.01" value="0.50" oninput="document.getElementById('vMom').textContent=this.value">
+          <label>LR Decay <span id="vDecay">0.999</span></label>
+          <input type="range" id="lrDecay" min="0.990" max="1.000" step="0.001" value="0.999" oninput="document.getElementById('vDecay').textContent=parseFloat(this.value).toFixed(3)">
+          <div class="note">Accumulates velocity like a rolling ball. Low momentum = responsive, can overshoot bumps while moving fast. High momentum = heavy, resists direction changes. Try 0.3&ndash;0.6 to escape small hills. LR Decay: 1.0 = none, lower = settles over time.</div>
+        </div>
+
+        <div id="tab-adam" class="tab-content">
+          <label>Learning Rate <span id="vAdamLR">0.01</span></label>
+          <input type="range" id="adamLR" min="0.001" max="0.05" step="0.001" value="0.010" oninput="document.getElementById('vAdamLR').textContent=parseFloat(this.value).toFixed(3)">
+          <label>&beta;1 (momentum) <span id="vBeta1">0.9</span></label>
+          <input type="range" id="beta1" min="0.0" max="0.999" step="0.001" value="0.900" oninput="document.getElementById('vBeta1').textContent=this.value">
+          <label>&beta;2 (RMS scale) <span id="vBeta2">0.999</span></label>
+          <input type="range" id="beta2" min="0.9" max="0.9999" step="0.0001" value="0.999" oninput="document.getElementById('vBeta2').textContent=parseFloat(this.value).toFixed(4)">
+          <div class="note">Combines momentum with adaptive step sizing. Divides by running average of gradient magnitudes, so the LR stays consistent regardless of steepness. This is why Adam's LR is much smaller&mdash;it self-adjusts.</div>
+        </div>
+
+        <div id="tab-sa" class="tab-content">
+          <label>Step Size <span id="vStepSize">0.03</span></label>
+          <input type="range" id="stepSize" min="0.005" max="0.1" step="0.005" value="0.03" oninput="document.getElementById('vStepSize').textContent=this.value">
+          <label>Temperature <span id="vTemp">3.0</span></label>
+          <input type="range" id="temp" min="0.1" max="5.0" step="0.1" value="3.0" oninput="document.getElementById('vTemp').textContent=this.value">
+          <label>Cooling Rate <span id="vCool">0.995</span></label>
+          <input type="range" id="cool" min="0.980" max="0.9999" step="0.0001" value="0.9950" oninput="document.getElementById('vCool').textContent=parseFloat(this.value).toFixed(4)">
+          <div class="note">Not gradient-based. Jumps randomly, accepts bad moves probabilistically. Explores broadly when hot, settles when cold. Inspired by metalworking annealing.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="stats">
       <span class="stat-label">Step:</span> <span id="statStep">-</span><br>
       <span class="gd-label">GD</span> f(x): <span id="statGD">-</span><br>
       <span class="gdp-label">GD+</span> f(x): <span id="statGDP">-</span><br>
       <span class="adam-label">Adam</span> f(x): <span id="statAdam">-</span><br>
-      <span class="sa-label">SA</span> f(x): <span id="statSA">-</span><br>
-      <span class="sa-label">SA best</span> f(x): <span id="statSABest">-</span><br>
+      <span class="sa-label">SA</span> f(x): <span id="statSA">-</span> &nbsp; <span class="sa-label">best:</span> <span id="statSABest">-</span><br>
       <span class="stat-label">Temp:</span> <span id="statTemp">-</span>
     </div>
   </div>
 </div>
 
 <script>
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(function(el) { el.classList.remove('active'); });
+  document.querySelectorAll('.tab').forEach(function(el) { el.classList.remove('active'); el.style.color = ''; });
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+  var colors = { gd: '#00ff88', gdp: '#00ccff', adam: '#cc66ff', sa: '#ff6600' };
+  btn.style.color = colors[id] || '#fff';
+}
+
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const W = canvas.width, H = canvas.height;
@@ -140,7 +152,6 @@ const PAD_LEFT = 40, PAD_RIGHT = 20, PAD_TOP = 20, PAD_BOTTOM = 30;
 const plotW = W - PAD_LEFT - PAD_RIGHT;
 const plotH = H - PAD_TOP - PAD_BOTTOM;
 
-// --- 1D function: sum of sinusoids + Gaussians ---
 let sinTerms = [];
 let gaussTerms = [];
 
@@ -182,7 +193,6 @@ function df(x) {
   return (f(x + h) - f(x - h)) / (2 * h);
 }
 
-// --- Precompute curve ---
 const N_SAMPLES = 500;
 let curveSamples = [];
 let fMin, fMax;
@@ -203,7 +213,6 @@ function computeCurve() {
   fMax += pad;
 }
 
-// --- Drawing ---
 function xToCanvas(x) { return PAD_LEFT + x * plotW; }
 function yToCanvas(y) { return PAD_TOP + plotH - ((y - fMin) / (fMax - fMin)) * plotH; }
 function canvasToX(px) { return (px - PAD_LEFT) / plotW; }
@@ -310,8 +319,6 @@ function redraw() {
   ctx.clearRect(0, 0, W, H);
   drawAxes();
   drawCurve();
-
-  // Start marker
   const scx = xToCanvas(startX);
   const scy = yToCanvas(f(startX));
   ctx.beginPath();
@@ -321,13 +328,10 @@ function redraw() {
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 1;
   ctx.stroke();
-
   drawMarker(gdX, '#00ff88', 'GD');
   drawMarker(gdpX, '#00ccff', 'GD+');
   drawMarker(adamX, '#cc66ff', 'Adam');
   drawMarker(saX, '#ff6600', 'SA');
-
-  // SA best-found marker
   if (saBestX !== saX) {
     const bx = xToCanvas(saBestX);
     const by = yToCanvas(saBestVal);
@@ -378,15 +382,12 @@ function reset() { pickStart(); resetToStart(); }
 function rerun() { resetToStart(); }
 
 // --- Algorithms ---
-
-// Vanilla GD: raw gradient, fixed LR
 function stepGD() {
   const lr = parseFloat(document.getElementById('lr').value);
   const gradient = df(gdX);
-  gdX = clamp01(gdX - lr * 0.01 * gradient);
+  gdX = clamp01(gdX - lr * 0.001 * gradient);
 }
 
-// GD + Momentum + LR decay
 function stepGDP() {
   const mom = parseFloat(document.getElementById('momentum').value);
   const decay = parseFloat(document.getElementById('lrDecay').value);
@@ -396,29 +397,20 @@ function stepGDP() {
   gdpCurrentLR *= decay;
 }
 
-// Adam optimizer
 function stepAdam() {
   const lr = parseFloat(document.getElementById('adamLR').value);
   const b1 = parseFloat(document.getElementById('beta1').value);
   const b2 = parseFloat(document.getElementById('beta2').value);
   const eps = 1e-8;
   const gradient = df(adamX);
-
   adamT++;
-  // Update biased first moment (like momentum — tracks gradient direction)
   adamM = b1 * adamM + (1 - b1) * gradient;
-  // Update biased second moment (tracks gradient magnitude)
   adamV = b2 * adamV + (1 - b2) * gradient * gradient;
-
-  // Bias correction (moments start at 0, so early estimates are too small)
   const mHat = adamM / (1 - Math.pow(b1, adamT));
   const vHat = adamV / (1 - Math.pow(b2, adamT));
-
-  // Update: divide by sqrt(vHat) normalizes step by gradient scale
   adamX = clamp01(adamX - lr * mHat / (Math.sqrt(vHat) + eps));
 }
 
-// Simulated Annealing
 function stepSA() {
   const step = parseFloat(document.getElementById('stepSize').value);
   const cool = parseFloat(document.getElementById('cool').value);
@@ -491,7 +483,6 @@ function randomizeFunction() {
   reset();
 }
 
-// Init
 generateFunction();
 computeCurve();
 reset();
