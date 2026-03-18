@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Optimization Algorithm Comparison</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #1a1a2e; color: #e0e0e0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; }
+  h1 { font-size: 1.4rem; margin-bottom: 12px; color: #e94560; }
+  .container { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; max-width: 1200px; }
+  canvas { border: 1px solid #333; border-radius: 6px; background: #0f0f23; cursor: crosshair; }
+  .sidebar { display: flex; flex-direction: column; gap: 12px; min-width: 300px; max-width: 320px; }
+  .panel { background: #16213e; padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; }
+  .panel h2 { font-size: 0.95rem; color: #e94560; border-bottom: 1px solid #333; padding-bottom: 5px; margin: 0; }
+  label { font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
+  label span { color: #aaa; font-variant-numeric: tabular-nums; min-width: 50px; text-align: right; }
+  input[type=range] { width: 100%; accent-color: #e94560; }
+  button { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+  .btn-go { background: #e94560; color: white; }
+  .btn-go:hover { background: #c73650; }
+  .btn-pause { background: #e9a045; color: white; }
+  .btn-pause:hover { background: #c78530; }
+  .btn-reset { background: #533483; color: white; }
+  .btn-reset:hover { background: #3e2563; }
+  .btn-rand { background: #0f3460; color: white; }
+  .btn-rand:hover { background: #0a2540; }
+  .btn-row { display: flex; gap: 8px; }
+  .legend { display: flex; gap: 12px; margin-top: 8px; font-size: 0.8rem; flex-wrap: wrap; }
+  .legend div { display: flex; align-items: center; gap: 4px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .stats { font-size: 0.8rem; background: #0f0f23; padding: 8px; border-radius: 4px; line-height: 1.6; }
+  .stats .stat-label { color: #e94560; font-weight: bold; }
+  .stats .gd-label { color: #00ff88; font-weight: bold; }
+  .stats .gdp-label { color: #00ccff; font-weight: bold; }
+  .stats .adam-label { color: #cc66ff; font-weight: bold; }
+  .stats .sa-label { color: #ff6600; font-weight: bold; }
+  .hint { font-size: 0.75rem; color: #777; line-height: 1.3; margin-top: -2px; }
+  .note { font-size: 0.75rem; color: #998; line-height: 1.3; background: rgba(255,255,255,0.03); padding: 5px 7px; border-radius: 3px; border-left: 2px solid #444; }
+</style>
+</head>
+<body>
+<h1>Optimization Algorithm Comparison</h1>
+<div class="container">
+  <div>
+    <canvas id="canvas" width="700" height="420"></canvas>
+    <div class="legend">
+      <div><span class="dot" style="background:#00ff88"></span> Vanilla GD</div>
+      <div><span class="dot" style="background:#00ccff"></span> GD + Momentum</div>
+      <div><span class="dot" style="background:#cc66ff"></span> Adam</div>
+      <div><span class="dot" style="background:#ff6600"></span> Simulated Annealing</div>
+      <div><span class="dot" style="background:#ffffff"></span> Start</div>
+    </div>
+  </div>
+  <div class="sidebar">
+    <div class="panel">
+      <h2>Function</h2>
+      <button class="btn-rand" onclick="randomizeFunction()">Randomize</button>
+      <div class="hint">Click on the chart to set start position</div>
+    </div>
+
+    <div class="panel">
+      <h2 style="color:#00ff88">Vanilla GD</h2>
+      <label>Learning Rate <span id="vLR">0.5</span></label>
+      <input type="range" id="lr" min="0.05" max="2.0" step="0.05" value="0.5" oninput="document.getElementById('vLR').textContent=this.value">
+      <div class="note">Follows the slope downhill. Always gets trapped in the nearest local minimum. Sensitive to gradient scale: too high overshoots, too low crawls.</div>
+    </div>
+
+    <div class="panel">
+      <h2 style="color:#00ccff">GD + Momentum</h2>
+      <label>Learning Rate <span id="vLR2">0.5</span></label>
+      <input type="range" id="lr2" min="0.05" max="2.0" step="0.05" value="0.5" oninput="document.getElementById('vLR2').textContent=this.value">
+      <label>Momentum <span id="vMom">0.5</span></label>
+      <input type="range" id="momentum" min="0.0" max="0.99" step="0.01" value="0.50" oninput="document.getElementById('vMom').textContent=this.value">
+      <div class="note">Accumulates velocity like a rolling ball. Low momentum = responsive, can overshoot bumps while moving fast. High momentum = heavy, resists direction changes. Try 0.3-0.6 to escape small hills.</div>
+      <label>LR Decay <span id="vDecay">0.999</span></label>
+      <input type="range" id="lrDecay" min="0.990" max="1.000" step="0.001" value="0.999" oninput="document.getElementById('vDecay').textContent=parseFloat(this.value).toFixed(3)">
+      <div class="hint">1.0 = no decay. Lower = shrinks LR over time so it settles.</div>
+    </div>
+
+    <div class="panel">
+      <h2 style="color:#cc66ff">Adam</h2>
+      <label>Learning Rate <span id="vAdamLR">0.01</span></label>
+      <input type="range" id="adamLR" min="0.001" max="0.05" step="0.001" value="0.010" oninput="document.getElementById('vAdamLR').textContent=parseFloat(this.value).toFixed(3)">
+      <div class="hint">Effective step size, auto-scaled by gradient history.</div>
+      <label>&beta;1 (momentum) <span id="vBeta1">0.9</span></label>
+      <input type="range" id="beta1" min="0.0" max="0.999" step="0.001" value="0.900" oninput="document.getElementById('vBeta1').textContent=this.value">
+      <div class="hint">How much past gradient direction is remembered.</div>
+      <label>&beta;2 (RMS scale) <span id="vBeta2">0.999</span></label>
+      <input type="range" id="beta2" min="0.9" max="0.9999" step="0.0001" value="0.999" oninput="document.getElementById('vBeta2').textContent=parseFloat(this.value).toFixed(4)">
+      <div class="hint">How much past gradient magnitude is remembered.</div>
+      <div class="note">Combines momentum with adaptive step sizing. Divides by the running average of gradient magnitudes, so the LR behaves consistently regardless of how steep the function is. This is why Adam's LR is much smaller &mdash; it self-adjusts.</div>
+    </div>
+
+    <div class="panel">
+      <h2 style="color:#ff6600">Simulated Annealing</h2>
+      <label>Step Size <span id="vStepSize">0.03</span></label>
+      <input type="range" id="stepSize" min="0.005" max="0.1" step="0.005" value="0.03" oninput="document.getElementById('vStepSize').textContent=this.value">
+      <div class="hint">How far each random jump can go.</div>
+      <label>Temperature <span id="vTemp">1.0</span></label>
+      <input type="range" id="temp" min="0.1" max="5.0" step="0.1" value="1.0" oninput="document.getElementById('vTemp').textContent=this.value">
+      <div class="hint">Higher = more willing to accept uphill moves early on.</div>
+      <label>Cooling Rate <span id="vCool">0.995</span></label>
+      <input type="range" id="cool" min="0.980" max="0.9999" step="0.0001" value="0.9950" oninput="document.getElementById('vCool').textContent=parseFloat(this.value).toFixed(4)">
+      <div class="hint">How quickly temperature drops. Closer to 1 = slower cooling.</div>
+      <div class="note">Not gradient-based at all. Jumps randomly, accepts bad moves probabilistically. Explores broadly when hot, settles when cold. Inspired by metalworking annealing.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Playback</h2>
+      <label>Delay between steps <span id="vDelay">0 ms</span></label>
+      <input type="range" id="delay" min="0" max="1000" step="10" value="0" oninput="document.getElementById('vDelay').textContent=this.value+' ms'">
+      <div class="btn-row">
+        <button class="btn-go" onclick="start()">Go</button>
+        <button class="btn-pause" onclick="pause()">Pause</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn-reset" onclick="rerun()">Rerun</button>
+        <button class="btn-rand" onclick="reset()">New Start</button>
+      </div>
+    </div>
+
+    <div class="stats" id="stats">
+      <span class="stat-label">Step:</span> <span id="statStep">-</span><br>
+      <span class="gd-label">GD</span> f(x): <span id="statGD">-</span><br>
+      <span class="gdp-label">GD+</span> f(x): <span id="statGDP">-</span><br>
+      <span class="adam-label">Adam</span> f(x): <span id="statAdam">-</span><br>
+      <span class="sa-label">SA</span> f(x): <span id="statSA">-</span><br>
+      <span class="sa-label">SA best</span> f(x): <span id="statSABest">-</span><br>
+      <span class="stat-label">Temp:</span> <span id="statTemp">-</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const PAD_LEFT = 40, PAD_RIGHT = 20, PAD_TOP = 20, PAD_BOTTOM = 30;
+const plotW = W - PAD_LEFT - PAD_RIGHT;
+const plotH = H - PAD_TOP - PAD_BOTTOM;
+
+// --- 1D function: sum of sinusoids + Gaussians ---
+let sinTerms = [];
+let gaussTerms = [];
+
+function generateFunction() {
+  sinTerms = [];
+  const nSin = 3 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < nSin; i++) {
+    sinTerms.push({
+      freq: 1 + Math.random() * 6,
+      phase: Math.random() * Math.PI * 2,
+      amp: 0.2 + Math.random() * 0.8,
+    });
+  }
+  gaussTerms = [];
+  const nGauss = 2 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < nGauss; i++) {
+    gaussTerms.push({
+      cx: Math.random(),
+      amp: (Math.random() - 0.3) * 3,
+      sigma: 0.04 + Math.random() * 0.12,
+    });
+  }
+}
+
+function f(x) {
+  let v = 0;
+  for (const s of sinTerms) {
+    v += s.amp * Math.sin(s.freq * Math.PI * x + s.phase);
+  }
+  for (const g of gaussTerms) {
+    const d = (x - g.cx) / g.sigma;
+    v += g.amp * Math.exp(-0.5 * d * d);
+  }
+  return v;
+}
+
+function df(x) {
+  const h = 0.0005;
+  return (f(x + h) - f(x - h)) / (2 * h);
+}
+
+// --- Precompute curve ---
+const N_SAMPLES = 500;
+let curveSamples = [];
+let fMin, fMax;
+
+function computeCurve() {
+  curveSamples = [];
+  fMin = Infinity;
+  fMax = -Infinity;
+  for (let i = 0; i <= N_SAMPLES; i++) {
+    const x = i / N_SAMPLES;
+    const y = f(x);
+    curveSamples.push({ x, y });
+    if (y < fMin) fMin = y;
+    if (y > fMax) fMax = y;
+  }
+  const pad = (fMax - fMin) * 0.1 || 1;
+  fMin -= pad;
+  fMax += pad;
+}
+
+// --- Drawing ---
+function xToCanvas(x) { return PAD_LEFT + x * plotW; }
+function yToCanvas(y) { return PAD_TOP + plotH - ((y - fMin) / (fMax - fMin)) * plotH; }
+function canvasToX(px) { return (px - PAD_LEFT) / plotW; }
+
+function drawAxes() {
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(PAD_LEFT, H - PAD_BOTTOM);
+  ctx.lineTo(W - PAD_RIGHT, H - PAD_BOTTOM);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(PAD_LEFT, PAD_TOP);
+  ctx.lineTo(PAD_LEFT, H - PAD_BOTTOM);
+  ctx.stroke();
+  ctx.fillStyle = '#888';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'center';
+  for (let i = 0; i <= 5; i++) {
+    const x = i / 5;
+    ctx.fillText(x.toFixed(1), xToCanvas(x), H - PAD_BOTTOM + 16);
+  }
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const y = fMin + (fMax - fMin) * i / 4;
+    ctx.fillText(y.toFixed(1), PAD_LEFT - 6, yToCanvas(y) + 4);
+  }
+  ctx.fillStyle = '#666';
+  ctx.textAlign = 'center';
+  ctx.fillText('x', W / 2, H - 2);
+  ctx.save();
+  ctx.translate(12, H / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('f(x)', 0, 0);
+  ctx.restore();
+}
+
+function drawCurve() {
+  ctx.beginPath();
+  ctx.moveTo(xToCanvas(curveSamples[0].x), yToCanvas(curveSamples[0].y));
+  for (let i = 1; i < curveSamples.length; i++) {
+    ctx.lineTo(xToCanvas(curveSamples[i].x), yToCanvas(curveSamples[i].y));
+  }
+  ctx.strokeStyle = '#5588cc';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function drawMarker(x, color, label) {
+  const y = f(x);
+  const cx = xToCanvas(x);
+  const cy = yToCanvas(y);
+  ctx.setLineDash([3, 3]);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.4;
+  ctx.beginPath();
+  ctx.moveTo(cx, H - PAD_BOTTOM);
+  ctx.lineTo(cx, cy);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(label, cx, cy - 12);
+}
+
+// --- State ---
+let startX;
+let gdX, gdpX, adamX, saX;
+let gdpVelocity, gdpCurrentLR;
+let adamM, adamV, adamT;
+let saBestX, saBestVal;
+let saTemp;
+let running = false;
+let animId = null;
+let timerId = null;
+let stepCount = 0;
+
+function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+
+function pickStart() {
+  startX = 0.1 + Math.random() * 0.8;
+}
+
+canvas.addEventListener('click', function(e) {
+  if (running) return;
+  const rect = canvas.getBoundingClientRect();
+  const px = (e.clientX - rect.left) * (W / rect.width);
+  const x = clamp01(canvasToX(px));
+  startX = x;
+  resetToStart();
+});
+
+function redraw() {
+  ctx.clearRect(0, 0, W, H);
+  drawAxes();
+  drawCurve();
+
+  // Start marker
+  const scx = xToCanvas(startX);
+  const scy = yToCanvas(f(startX));
+  ctx.beginPath();
+  ctx.arc(scx, scy, 5, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  drawMarker(gdX, '#00ff88', 'GD');
+  drawMarker(gdpX, '#00ccff', 'GD+');
+  drawMarker(adamX, '#cc66ff', 'Adam');
+  drawMarker(saX, '#ff6600', 'SA');
+
+  // SA best-found marker
+  if (saBestX !== saX) {
+    const bx = xToCanvas(saBestX);
+    const by = yToCanvas(saBestVal);
+    ctx.save();
+    ctx.translate(bx, by);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = 'rgba(255, 102, 0, 0.4)';
+    ctx.strokeStyle = '#ff6600';
+    ctx.lineWidth = 1;
+    ctx.fillRect(-5, -5, 10, 10);
+    ctx.strokeRect(-5, -5, 10, 10);
+    ctx.restore();
+    ctx.fillStyle = '#ff6600';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('best', bx, by - 10);
+  }
+}
+
+function resetToStart() {
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  if (timerId) { clearTimeout(timerId); timerId = null; }
+  running = false;
+  gdX = startX;
+  gdpX = startX;
+  gdpVelocity = 0;
+  gdpCurrentLR = parseFloat(document.getElementById('lr2').value);
+  adamX = startX;
+  adamM = 0;
+  adamV = 0;
+  adamT = 0;
+  saX = startX;
+  saBestX = startX;
+  saBestVal = f(startX);
+  saTemp = parseFloat(document.getElementById('temp').value);
+  stepCount = 0;
+  redraw();
+  document.getElementById('statStep').textContent = '-';
+  document.getElementById('statGD').textContent = '-';
+  document.getElementById('statGDP').textContent = '-';
+  document.getElementById('statAdam').textContent = '-';
+  document.getElementById('statSA').textContent = '-';
+  document.getElementById('statSABest').textContent = '-';
+  document.getElementById('statTemp').textContent = '-';
+}
+
+function reset() { pickStart(); resetToStart(); }
+function rerun() { resetToStart(); }
+
+// --- Algorithms ---
+
+// Vanilla GD: raw gradient, fixed LR
+function stepGD() {
+  const lr = parseFloat(document.getElementById('lr').value);
+  const gradient = df(gdX);
+  gdX = clamp01(gdX - lr * 0.01 * gradient);
+}
+
+// GD + Momentum + LR decay
+function stepGDP() {
+  const mom = parseFloat(document.getElementById('momentum').value);
+  const decay = parseFloat(document.getElementById('lrDecay').value);
+  const gradient = df(gdpX);
+  gdpVelocity = mom * gdpVelocity + gdpCurrentLR * 0.01 * gradient;
+  gdpX = clamp01(gdpX - gdpVelocity);
+  gdpCurrentLR *= decay;
+}
+
+// Adam optimizer
+function stepAdam() {
+  const lr = parseFloat(document.getElementById('adamLR').value);
+  const b1 = parseFloat(document.getElementById('beta1').value);
+  const b2 = parseFloat(document.getElementById('beta2').value);
+  const eps = 1e-8;
+  const gradient = df(adamX);
+
+  adamT++;
+  // Update biased first moment (like momentum — tracks gradient direction)
+  adamM = b1 * adamM + (1 - b1) * gradient;
+  // Update biased second moment (tracks gradient magnitude)
+  adamV = b2 * adamV + (1 - b2) * gradient * gradient;
+
+  // Bias correction (moments start at 0, so early estimates are too small)
+  const mHat = adamM / (1 - Math.pow(b1, adamT));
+  const vHat = adamV / (1 - Math.pow(b2, adamT));
+
+  // Update: divide by sqrt(vHat) normalizes step by gradient scale
+  adamX = clamp01(adamX - lr * mHat / (Math.sqrt(vHat) + eps));
+}
+
+// Simulated Annealing
+function stepSA() {
+  const step = parseFloat(document.getElementById('stepSize').value);
+  const cool = parseFloat(document.getElementById('cool').value);
+  const curVal = f(saX);
+  const dx = (Math.random() - 0.5) * 2 * step;
+  const nx = clamp01(saX + dx);
+  const newVal = f(nx);
+  const delta = newVal - curVal;
+  if (delta < 0 || Math.random() < Math.exp(-delta / (saTemp + 1e-10))) {
+    saX = nx;
+    if (newVal < saBestVal) {
+      saBestVal = newVal;
+      saBestX = nx;
+    }
+  }
+  saTemp *= cool;
+}
+
+function updateStats() {
+  document.getElementById('statStep').textContent = stepCount;
+  document.getElementById('statGD').textContent = f(gdX).toFixed(4);
+  document.getElementById('statGDP').textContent = f(gdpX).toFixed(4);
+  document.getElementById('statAdam').textContent = f(adamX).toFixed(4);
+  document.getElementById('statSA').textContent = f(saX).toFixed(4);
+  document.getElementById('statSABest').textContent = saBestVal.toFixed(4);
+  document.getElementById('statTemp').textContent = saTemp.toFixed(4);
+}
+
+function tick() {
+  if (!running) return;
+  stepGD();
+  stepGDP();
+  stepAdam();
+  stepSA();
+  stepCount++;
+  redraw();
+  updateStats();
+  const delayMs = parseInt(document.getElementById('delay').value);
+  if (delayMs > 0) {
+    timerId = setTimeout(tick, delayMs);
+  } else {
+    timerId = null;
+    animId = requestAnimationFrame(tick);
+  }
+}
+
+function start() {
+  if (running) return;
+  running = true;
+  if (stepCount === 0) {
+    saTemp = parseFloat(document.getElementById('temp').value);
+    gdpCurrentLR = parseFloat(document.getElementById('lr2').value);
+  }
+  tick();
+}
+
+function pause() {
+  if (!running) return;
+  running = false;
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  if (timerId) { clearTimeout(timerId); timerId = null; }
+}
+
+function randomizeFunction() {
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  if (timerId) { clearTimeout(timerId); timerId = null; }
+  running = false;
+  generateFunction();
+  computeCurve();
+  reset();
+}
+
+// Init
+generateFunction();
+computeCurve();
+reset();
+</script>
+</body>
+</html>
